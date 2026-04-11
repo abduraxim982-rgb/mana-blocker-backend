@@ -31,4 +31,4 @@ io.on('connection',function(s){s.on('device:register',function(id){s.join('devic
 app.set('io',io);
 var PORT=process.env.PORT||3000;
 var MONGO=process.env.MONGO_URI||'mongodb://localhost:27017/mana_blocker';
-mongoose.connect(MONGO).then(function(){srv.listen(PORT," 0.0.0.0,function(){console.log('Server running on port '+PORT);});}).catch(function(e){console.error(e.message);process.exit(1);});
+mongoose.connect(MONGO).then(function(){srv.listen(PORT,function(){console.log('Server running on port '+PORT);});}).catch(function(e){console.error(e.message);process.exit(1);});
