@@ -23,11 +23,12 @@ app.use(function(req, res) {
 });
 var PORT = process.env.PORT || 3000;
 var MONGO = process.env.MONGO_URI || 'mongodb://localhost:27017/mana_blocker';
+app.listen(PORT, '0.0.0.0', function() {
+  console.log('Server running on port ' + PORT);
+});
+
 mongoose.connect(MONGO).then(function() {
-  app.listen(PORT, '0.0.0.0', function() {
-    console.log('Server running on port ' + PORT);
-  });
+  console.log('MongoDB connected');
 }).catch(function(e) {
-  console.error(e.message);
-  process.exit(1);
+  console.error('MongoDB error:', e.message);
 });
