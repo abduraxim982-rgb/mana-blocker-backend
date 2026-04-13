@@ -6,7 +6,7 @@ var helmet = require('helmet');
 var morgan = require('morgan');
 var app = express();
 app.use(helmet());
-app.use(cors());
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use(morgan('combined'));
 app.use('/api/auth', require('./routes/auth'));
@@ -32,3 +32,4 @@ mongoose.connect(MONGO).then(function() {
 }).catch(function(e) {
   console.error('MongoDB error:', e.message);
 });
+
