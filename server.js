@@ -15,6 +15,8 @@ app.use('/api/rules', require('./routes/rules'));
 app.use('/api/schedule', require('./routes/schedule'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/devices', require('./routes/devices'));
+app.use('/api/accountability', require('./routes/accountability'));
+app.use('/api/telegram', require('./routes/telegram'));
 app.get('/health', function(req, res) {
   res.status(200).json({ status: 'OK' });
 });
