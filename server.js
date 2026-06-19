@@ -18,7 +18,7 @@ app.use('/api/devices', require('./routes/devices'));
 app.use('/api/accountability', require('./routes/accountability'));
 app.use('/api/telegram', require('./routes/telegram'));
 app.get('/health', function(req, res) {
-  res.status(200).json({ status: 'OK' });
+  res.status(200).send('ok');
 });
 app.use(function(req, res) {
   res.status(404).json({ error: 'Not found' });
