@@ -157,7 +157,12 @@ router.post('/uninstall-attempt', authenticate, async (req, res) => {
     });
 
     const displayName = user.name || user.email || 'Foydalanuvchi';
-    const text = `⚠️ <b>${displayName}</b> Mana ilovasini o'chirmoqchi. Ruxsat berasizmi?`;
+    // reason distinguishes an uninstall attempt from a Settings-based
+    // protection-disable attempt (accessibility toggle / device admin).
+    const reason = req.body && req.body.reason;
+    const text = reason === 'settings'
+      ? `⚠️ <b>${displayName}</b> Mana himoyasini o'chirmoqchi (Settings orqali). Ruxsat berasizmi?`
+      : `⚠️ <b>${displayName}</b> Mana ilovasini o'chirmoqchi. Ruxsat berasizmi?`;
     const replyMarkup = {
       inline_keyboard: [[
         { text: '✅ Ruxsat', callback_data: `approve:${reqDoc._id}` },
