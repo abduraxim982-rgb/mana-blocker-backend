@@ -38,7 +38,12 @@ app.use('/api/devices', require('./routes/devices'));
 app.use('/api/accountability', require('./routes/accountability'));
 app.use('/api/telegram', require('./routes/telegram'));
 app.get('/health', function(req, res) {
-  res.status(200).send('ok');
+  // version = deploy qilingan commit SHA. Render runtime'da RENDER_GIT_COMMIT'ni
+  // avtomatik beradi (qo'lda yangilash shart emas); lokalда 'local'.
+  res.status(200).json({
+    status: 'ok',
+    version: (process.env.RENDER_GIT_COMMIT || 'local').slice(0, 7)
+  });
 });
 app.use(function(req, res) {
   res.status(404).json({ error: 'Not found' });
