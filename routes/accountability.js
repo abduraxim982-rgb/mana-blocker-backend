@@ -66,6 +66,22 @@ router.post('/event', authenticate, async (req, res) => {
   }
 });
 
+// Device heartbeat: the app pings this every ~15 min via WorkManager, even when
+// closed. Records liveness and clears any prior stale-alert so the watchdog can
+// fire again on a future silence. Absence of pings (uninstall/kill/force-stop)
+// is what the watchdog detects.
+router.post('/heartbeat', authenticate, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.userId, {
+      lastHeartbeat: new Date(),
+      heartbeatAlertSent: false
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Request partner approval before unblocking one or more apps.
 router.post('/unblock-request', authenticate, async (req, res) => {
   const tStart = Date.now(); // VAZIFA 1: route boshi

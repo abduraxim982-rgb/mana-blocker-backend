@@ -60,3 +60,39 @@ mongoose.connect(MONGO).then(function() {
   console.error('MongoDB error:', e.message);
 });
 
+// Heartbeat watchdog: every 5 min, alert the partner ONCE when a user with a
+// linked partner has gone silent for 30+ min (uninstall / force-stop / kill /
+// safe-mode). The 30-min grace prevents false alarms from a dead battery, no
+// internet, or a phone that's simply off. Users who never pinged (lastHeartbeat
+// null) are ignored, so existing users aren't spammed.
+var HEARTBEAT_STALE_MS = 30 * 60 * 1000;
+setInterval(function() {
+  (async function() {
+    try {
+      var models = require('./models');
+      var telegram = require('./utils/telegram');
+      var cutoff = new Date(Date.now() - HEARTBEAT_STALE_MS);
+      var stale = await models.User.find({
+        partnerChatId: { $ne: null },
+        lastHeartbeat: { $ne: null, $lt: cutoff },
+        heartbeatAlertSent: { $ne: true }
+      });
+      for (var i = 0; i < stale.length; i++) {
+        var u = stale[i];
+        var displayName = u.name || u.email || 'Foydalanuvchi';
+        try {
+          await telegram.sendTelegram(u.partnerChatId,
+            '⚠️ <b>Mana</b> ' + displayName + ' qurilmasida 30 daqiqadan beri ' +
+            'javob bermayapti — o\'chirilgan yoki to\'xtatilgan bo\'lishi mumkin.');
+          u.heartbeatAlertSent = true;
+          await u.save();
+        } catch (e) {
+          console.error('heartbeat alert send failed:', e.message);
+        }
+      }
+    } catch (e) {
+      console.error('heartbeat watchdog error:', e.message);
+    }
+  })();
+}, 5 * 60 * 1000);
+
