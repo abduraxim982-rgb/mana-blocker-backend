@@ -1,10 +1,21 @@
  require('dotenv').config();
+
+// Fail-fast: refuse to start without a JWT secret. No insecure fallback.
+// Never log the secret's value — only report that it is missing.
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is not set. Refusing to start.');
+  process.exit(1);
+}
+
 var express = require('express');
 var mongoose = require('mongoose');
 var cors = require('cors');
 var helmet = require('helmet');
 var morgan = require('morgan');
 var app = express();
+// Behind Render's proxy: trust the first hop so req.ip is the real client IP.
+// Required for the auth rate-limiter to bucket per real IP, not per proxy IP.
+app.set('trust proxy', 1);
 
 // Global guard: an unprotected promise rejection (e.g. a Telegram send that
 // rejects with no .catch now that sendTelegram rethrows) must NEVER crash the
