@@ -42,7 +42,7 @@ app.get('/health', function(req, res) {
   // avtomatik beradi (qo'lda yangilash shart emas); lokalда 'local'.
   res.status(200).json({
     status: 'ok',
-    version: (process.env.RENDER_GIT_COMMIT || 'local').slice(0, 7)
+    version: (process.env.RENDER_GIT_COMMIT || 'local').slice(0, 7) + '+hb'
   });
 });
 app.use(function(req, res) {
