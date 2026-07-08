@@ -120,6 +120,58 @@ router.post('/unblock-request', authenticate, async (req, res) => {
   }
 });
 
+// Uninstall cooling-off: the app fires this the moment the user opens Mana's
+// uninstall screen. Reuses the proven unblock-request flow with a sentinel app
+// so the partner gets approve/deny buttons and the existing approved-pending
+// polling drives the 10-min "open" window. Responds immediately; Telegram is
+// fire-and-forget so the app never waits before bouncing.
+router.post('/uninstall-attempt', authenticate, async (req, res) => {
+  const tStart = Date.now();
+  let reqDoc;
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    // No partner linked → nothing to notify; app applies its own timer policy.
+    if (!user.partnerChatId) return res.json({ ok: true, needsApproval: false });
+
+    reqDoc = await UnblockRequest.create({
+      owner: req.userId,
+      apps: [{ package: '__uninstall__', label: "Mana ilovasini o'chirish" }],
+      status: 'pending'
+    });
+
+    const displayName = user.name || user.email || 'Foydalanuvchi';
+    const text = `⚠️ <b>${displayName}</b> Mana ilovasini o'chirmoqchi. Ruxsat berasizmi?`;
+    const replyMarkup = {
+      inline_keyboard: [[
+        { text: '✅ Ruxsat', callback_data: `approve:${reqDoc._id}` },
+        { text: '❌ Rad et', callback_data: `deny:${reqDoc._id}` }
+      ]]
+    };
+
+    // Respond immediately — do not wait for Telegram.
+    res.json({ ok: true, requestId: reqDoc._id });
+    console.log(`[uninstall-attempt] Total (javob qaytdi): ${Date.now() - tStart} ms`);
+
+    const tTelegram = Date.now();
+    sendTelegram(user.partnerChatId, text, replyMarkup)
+      .then(() => console.log(`[uninstall-attempt] Telegram send: ${Date.now() - tTelegram} ms`))
+      .catch((tgErr) => console.error(
+        `[uninstall-attempt] Telegram send FAILED (${Date.now() - tTelegram} ms):`, tgErr.message));
+  } catch (err) {
+    if (reqDoc) {
+      try {
+        await UnblockRequest.deleteOne({ _id: reqDoc._id });
+      } catch (dbErr) {
+        console.error('Failed to cleanup failed uninstall-attempt:', dbErr.message);
+      }
+    }
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+});
+
 // Poll a single request's status (owner-scoped).
 router.get('/unblock-request/approved-pending', authenticate, async (req, res) => {
   try {
