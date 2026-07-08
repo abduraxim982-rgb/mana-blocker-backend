@@ -5,6 +5,15 @@ var cors = require('cors');
 var helmet = require('helmet');
 var morgan = require('morgan');
 var app = express();
+
+// Global guard: an unprotected promise rejection (e.g. a Telegram send that
+// rejects with no .catch now that sendTelegram rethrows) must NEVER crash the
+// process. Log it and keep serving. This is a safety net — call sites should
+// still attach their own try/catch or .catch().
+process.on('unhandledRejection', function(reason) {
+  console.error('UNHANDLED REJECTION (jarayon tirik qoldi):', (reason && reason.message) || reason);
+});
+
 app.use(helmet());
 app.use(cors({ origin: '*' }));
 app.use(express.json());
