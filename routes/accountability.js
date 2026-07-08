@@ -41,29 +41,43 @@ router.post('/unlink', authenticate, async (req, res) => {
 
 // Notify the partner of an accountability event.
 router.post('/event', authenticate, async (req, res) => {
+  const tStart = Date.now();
   try {
     const message = req.body.message;
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (!user.partnerChatId) return res.json({ sent: false, reason: 'no_partner' });
     const displayName = user.name || user.email || 'Foydalanuvchi';
-    await sendTelegram(user.partnerChatId, `🔓 <b>${displayName}</b> ${message}`);
+
+    // Bir xil muammo (unblock-request kabi): DARHOL javob qaytar, Telegram'ni
+    // fon rejimida yubor. {sent:true} = "qabul qilindi, fonda yuborilmoqda".
     res.json({ sent: true });
+    console.log(`[event] Total (javob qaytdi): ${Date.now() - tStart} ms`);
+
+    const tTelegram = Date.now();
+    sendTelegram(user.partnerChatId, `🔓 <b>${displayName}</b> ${message}`)
+      .then(() => console.log(`[event] Telegram send: ${Date.now() - tTelegram} ms`))
+      .catch((tgErr) => console.error(
+        `[event] Telegram send FAILED (${Date.now() - tTelegram} ms):`, tgErr.message));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    }
   }
 });
 
 // Request partner approval before unblocking one or more apps.
 router.post('/unblock-request', authenticate, async (req, res) => {
+  const tStart = Date.now(); // VAZIFA 1: route boshi
+  let reqDoc;
   try {
-    const apps = Array.isArray(req.body.apps) ? req.body.apps : [];
+    const apps = Array.isArray(req.body && req.body.apps) ? req.body.apps : [];
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
     // No partner linked → caller may unblock without approval.
     if (!user.partnerChatId) return res.json({ needsApproval: false });
 
-    const reqDoc = await UnblockRequest.create({
+    reqDoc = await UnblockRequest.create({
       owner: req.userId,
       apps,
       status: 'pending'
@@ -78,11 +92,31 @@ router.post('/unblock-request', authenticate, async (req, res) => {
         { text: '❌ Rad et', callback_data: `deny:${reqDoc._id}` }
       ]]
     };
-    await sendTelegram(user.partnerChatId, text, replyMarkup);
 
+    // VAZIFA 2: ilovaga DARHOL javob qaytar — Telegram round-trip'ini KUTMA.
     res.json({ needsApproval: true, requestId: reqDoc._id });
+    console.log(`[unblock-request] Total (javob qaytdi): ${Date.now() - tStart} ms`);
+
+    // Telegram'ni fon rejimida yubor (fire-and-forget). Xatoni faqat log qil —
+    // ilova allaqachon javob oldi, so'rov hujjati DB'da 'pending' bo'lib qoladi.
+    const tTelegram = Date.now();
+    sendTelegram(user.partnerChatId, text, replyMarkup)
+      .then(() => console.log(`[unblock-request] Telegram send: ${Date.now() - tTelegram} ms`))
+      .catch((tgErr) => console.error(
+        `[unblock-request] Telegram send FAILED (${Date.now() - tTelegram} ms):`, tgErr.message));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (reqDoc) {
+      try {
+        await UnblockRequest.deleteOne({ _id: reqDoc._id });
+      } catch (dbErr) {
+        console.error('Failed to cleanup failed unblock request:', dbErr.message);
+      }
+    }
+    // Javob allaqachon yuborilgan bo'lishi mumkin (Telegram fon xatosi emas,
+    // undan oldingi xatolar) — ikki marta yubormaslik uchun tekshir.
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    }
   }
 });
 

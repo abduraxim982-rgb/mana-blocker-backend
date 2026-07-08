@@ -16,6 +16,7 @@ async function sendTelegram(chatId, htmlText, replyMarkup = null) {
     await axios.post(url, body);
   } catch (err) {
     console.error('sendTelegram error:', err.message);
+    throw err;
   }
 }
 
